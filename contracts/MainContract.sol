@@ -5,30 +5,47 @@ pragma solidity ^0.8.4;
 contract Reddit {
     address owner;
 
-    // Image index
-    uint256 public imageCount = 0;
-
-    // Space name Index
-    uint256 public spaceCount = 0;
-    mapping(uint256 => Image) public images;
-
-    // Creator earned index
-    mapping(address => uint256) public totalEarnings;
-    uint256 datePosted_i;
-
+    // ? ------User
     // User Mapping
     mapping(address => User) public users;
+
+    // user curated spaces (join spaces)
+    // Space Ids user have joined
+    mapping(address => uint256[]) public userSpaces;
 
     // Unique wallets / users
     uint256 public userCount = 0;
 
+    // ? -------Image (Posts)
+    // Image index
+    uint256 public imageCount = 0;
+
+    // Id to Image
+    mapping(uint256 => Image) public images;
+
     // create array to store image hash (addr -> hash[])
     mapping(address => uint256[]) posts;
 
-    // user curated spaces (join spaces)
-    mapping(address => uint256[]) public userSpaces;
+    // ? ------Space
+    // Space name Index
+    uint256 public spaceCount = 0;
 
-    // Comment structure assoicated with image
+    // Id to Space
+    mapping(uint256 => Space) public spaces;
+
+    // ? ------Comments
+    // create comments mapping (imageId -> comment)
+    mapping(uint256 => Comment[]) public comments;
+
+    // create mapping to keep inventory on number of comments per image
+    mapping(uint256 => uint256) public commentOnPosts;
+
+    // Creator earned index
+    // Address to Earning
+    mapping(address => uint256) public totalEarnings;
+
+    // ? ------STRUCTURES
+    // Space Structure
     struct Space {
         uint256 spaceCount;
         address spaceCreator;
@@ -36,24 +53,6 @@ contract Reddit {
         string spaceName;
         string spaceDescription;
     }
-
-    // create array of spaces
-    mapping(uint256 => Space) public spaces;
-
-    // Comment structure assoicated with image
-    struct Comment {
-        address addr;
-        uint256 datePosted;
-        uint256 imageId;
-        string commentMessage;
-    }
-
-    // create comments mapping (imageId -> comment)
-    mapping(uint256 => Comment[]) public comments;
-
-    // create mapping to keep inventory on number of comments per image
-    mapping(uint256 => uint256) public commentOnPosts;
-    uint256 public imageCommentCount = 0;
 
     // Profile of User
     struct User {
@@ -63,7 +62,7 @@ contract Reddit {
         uint256 postTotal;
         bool isVerified;
     }
-
+    
     // Image Proprerty Struct
     struct Image {
         uint256 id;
@@ -81,6 +80,16 @@ contract Reddit {
         uint256 spaceName;
     }
 
+        // Comment structure assoicated with image
+    struct Comment {
+        address addr;
+        uint256 datePosted;
+        uint256 imageId;
+        string commentMessage;
+    }
+
+
+    // ? EVENTS
     event ImageCreated(
         uint256 id,
         string hash,
@@ -195,9 +204,14 @@ contract Reddit {
                 bytes(_spaceDescription).length <= 100
         );
         
+        // Check User Balance
         uint256 userWalletBalance = token.balanceOf(msg.sender);
         require(10000 <= userWalletBalance, "balance is low");
+
+        // Add to index
         spaceCount++;
+
+        // Add to spaces mapping
         spaces[spaceCount] = Space(
             spaceCount,
             msg.sender,
@@ -406,10 +420,10 @@ contract Reddit {
         );
     }
 
-    // // get following comments
-    // function getComment(uint256 _imageId) public view returns(struct){
-    //    return comments(_imageId);
-    // }
+    // get following comments
+    function getComments(uint256 imageId) public view returns (Comment[] memory) {
+        return comments[imageId];
+    }
 
     // total number of upvotes by user
     function getUserUpvotesTotal(address _userAddr)
@@ -456,6 +470,7 @@ contract Reddit {
 
     //tip owner any amount of ETH
     function tipImageOwner(uint256 _id) public payable {
+        
         // Make sure the id is valid
         require(_id > 0 && _id <= imageCount);
 
@@ -487,6 +502,7 @@ contract Reddit {
             _author,
             msg.sender
         );
+        
     }
 
     function upvoteMeme(uint256 _id, IERC20 token) public payable {
@@ -589,13 +605,14 @@ contract Reddit {
         return _image.downvotes;
     }
 
-    //View Author Earnings
+    //View Post Earnings
     function imageEarnings(uint256 _id) public view returns (uint256) {
         // Fetch the image
         Image memory _image = images[_id];
         return _image.tipAmount;
     }
 
+    //View User Earnings
     function getTotalEarnings(address _author) public view returns (uint256) {
         uint256 totalEarned = totalEarnings[_author];
         return totalEarned;
