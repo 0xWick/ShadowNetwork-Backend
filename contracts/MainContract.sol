@@ -5,19 +5,34 @@ pragma solidity ^0.8.4;
 import "https://github.com/OpenZeppelin/openzeppelin-solidity/contracts/token/ERC721/ERC721.sol";
 
 
-contract Reddit {
-    address owner;
+contract ShadowNetwork {
 
-    // ? ------User
+    // * Project Terminology
+
+    // * Platform Name: Shadow Network 
+    // * Sub-Platforms: Syndicates
+    // * Members: Shadows (Users)
+
+    // * Owner of Network: Shogun
+    address public owner;
+
+    // ? ------User : Shadow
     // User Mapping
-    mapping(address => User) public users;
+    mapping(address => user) public users;
 
-    // user curated spaces (join spaces)
-    // Space Ids user have joined
-    mapping(address => uint256[]) public userSpaces;
+    // User curated spaces (join syndicates)
+    // Syndicate Ids user have joined
+    mapping(address => uint256[]) public userSyndicates;
 
     // Unique wallets / users
     uint256 public userCount = 0;
+
+    // ? ------Syndicate
+    // Syndicate name Index
+    uint256 public syndicateCount = 0;
+
+    // Id to Syndicate
+    mapping(uint256 => Syndicate) public syndicates;
 
     // ? -------Image (Posts)
     // Image index
@@ -26,35 +41,31 @@ contract Reddit {
     // Id to Image
     mapping(uint256 => Image) public images;
 
-    // create array to store image hash (addr -> hash[])
+    //* Get all Post Ids for a User
+    // * userAddress => [imageIds Array]
     mapping(address => uint256[]) posts;
-
-    // ? ------Space
-    // Space name Index
-    uint256 public spaceCount = 0;
-
-    // Id to Space
-    mapping(uint256 => Space) public spaces;
+    // ? --------------/
 
     // ? ------Comments
     // create comments mapping (imageId -> comment)
+    // Array of Comment(Struct) for a Post
     mapping(uint256 => Comment[]) public comments;
 
     // create mapping to keep inventory on number of comments per image
+    // postId => No of Comments
     mapping(uint256 => uint256) public commentOnPosts;
-
-    // Creator earned index
-    // Address to Earning
-    mapping(address => uint256) public totalEarnings;
+    // ? --------------/
 
     // ? ------STRUCTURES
-    // Space Structure
-    struct Space {
-        uint256 spaceCount;
-        address spaceCreator;
+    // Syndicate Structure
+    struct Syndicate {
+        uint256 syndicateCount;
+        address syndicateCreator;
         uint256 dateCreated;
-        string spaceName;
-        string spaceDescription;
+        string syndicateName;
+        string syndicateDescription;
+        string _nftName,
+        string _nftSymbol,
         address NftContract;
     }
 
@@ -64,6 +75,7 @@ contract Reddit {
         uint256 upvotesTotal;
         uint256 downvotesTotal;
         uint256 postTotal;
+        // * Is User Registered on Platform
         bool isVerified;
     }
 
@@ -72,16 +84,14 @@ contract Reddit {
         uint256 id;
         string hash;
         string memeTitle;
-        string creditSource;
-        uint256 tipAmount;
-        address payable author;
+        address author;
         uint256 datePosted;
         uint256 upvotes;
         uint256 downvotes;
         //convert to bool
         bool isSpoiler;
         bool isOC;
-        uint256 spaceName;
+        uint256 syndicateId;
     }
 
     // Comment structure assoicated with image
@@ -93,63 +103,50 @@ contract Reddit {
     }
 
     // ? EVENTS
-
-    event EventCreateSpace(
-        uint256 spaceCount,
-        address spaceCreator,
-        uint256 dateCreated,
-        string spaceName,
-        string spaceDescription,
-        address NftContract
+    event EventCreateSyndicate(
+        uint256 syndicateCount;
+        address syndicateCreator;
+        uint256 dateCreated;
+        string syndicateName;
+        string syndicateDescription;
+        string _nftName;
+        string _nftSymbol;
+        address NftContract;
     );
 
-    event EventJoinSpaces(uint256 id);
+    event EventJoinSyndicate(uint256 id, address _member);
 
     event ImageCreated(
         uint256 id,
         string hash,
         string memeTitle,
-        string creditSource,
-        uint256 tipAmount,
-        address payable author,
+        address author,
         uint256 datePosted,
         uint256 upvotes,
         uint256 downvotes,
         bool isSpoiler,
         bool isOC,
-        uint256 spaceName
-    );
-
-    event ImageTipped(
-        uint256 id,
-        string hash,
-        string memeTitle,
-        string description,
-        uint256 tipAmount,
-        address payable author,
-        address patron
+        uint256 syndicateId
     );
 
     event ImageUpvotes(
         uint256 id,
         string hash,
         string memeTitle,
-        string description,
-        uint256 tipAmount,
-        address payable author,
+        address author,
         uint256 upvotes,
-        uint256 downvotes
+        uint256 downvotes,
+        uint256 syndicateId
     );
 
     event ImageDownvotes(
         uint256 id,
         string hash,
         string memeTitle,
-        string description,
-        uint256 tipAmount,
-        address payable author,
+        address author,
         uint256 upvotes,
-        uint256 downvotes
+        uint256 downvotes,
+        uint256 syndicateId
     );
 
     event CommentAdded(
@@ -159,14 +156,9 @@ contract Reddit {
         string commentMessage
     );
 
-    
-
-    event TransferReceived(address _from, uint256 _amount);
-    event TransferSent(address _from, address _destAddr, uint256 _amount);
-
     constructor() {
         owner = msg.sender;
-        console.log("Deploying JoinSpace Smart Contract by Owner Add:", owner);
+        console.log("Deploying Shadow Network Smart Contract by Shogun:", owner);
     }
 
     // * Contract Owner Only
@@ -175,16 +167,10 @@ contract Reddit {
         _;
     }
 
-    // Space Members
-    modifier onlyMembers(uint256 _spaceId) {
-        require(checkOwnership(msg.sender, _spaceId), "Not authorized");
-        _;
-    }
-
     // * Check Member Function
-    function checkOwnership(address _user, uint256 _spaceId) public view returns (bool) {
+    function checkOwnership(address _user, uint256 _syndicateId) public view returns (bool) {
         // Get the address of the NFT contract for the specified space
-        address nftContract = spaceArray[_spaceId].NftContract;
+        address nftContract = syndicates[_syndicateId].NftContract;
 
         // Call the balanceOf function on the NFT contract to get the number of NFTs owned by the user
         uint256 balance = ERC721(nftContract).balanceOf(_user);
@@ -193,84 +179,90 @@ contract Reddit {
         return balance > 0;
     }
 
-
-    // Create JoinSpace Spaces
-    // Requirement: Wallet Address must reach the minimum threashold of ETH and ERC20 Tokens
-    function createSpace(
-        string memory _spaceName,
-        string memory _spaceDescription,
-        IERC20 token
+    //* Create a Syndicate in Shadow Network
+    function createSyndicate(
+        string memory _syndicateName,
+        string memory _syndicateDescription,
+        string memory _nftName,
+        string memory _nftSymbol
     ) public payable {
         // Requires space name to be less than 21 words
-        require(bytes(_spaceName).length > 0 && bytes(_spaceName).length <= 21);
+        require(bytes(_syndicateName).length > 0 && bytes(_syndicateName).length <= 21);
         require(
-            bytes(_spaceDescription).length > 0 &&
-                bytes(_spaceDescription).length <= 100
+            bytes(_syndicateDescription).length > 0 &&
+                bytes(_syndicateDescription).length <= 100
         );
 
         // Add to index
-        spaceCount++;
+        syndicateCount++;
 
         // Create an instance of the ERC721 contract
-        ERC721 erc721 = new ERC721(_name, _symbol);
+        ERC721 erc721 = new ERC721(_nftName, _nftSymbol);
 
         // Add to spaces mapping
-        spaces[spaceCount] = Space(
-            spaceCount,
+        syndicates[syndicateCount] = Syndicate(
+            syndicateCount,
             msg.sender,
             block.timestamp,
-            _spaceName,
-            _spaceDescription,
+            _syndicateName,
+            _syndicateDescription,
+            _nftName,
+            _nftSymbol,
             address(erc721)
         );
 
-        emit EventCreateSpace(
-            spaceCount,
+        emit EventCreateSyndicate(
+             syndicateCount,
             msg.sender,
             block.timestamp,
-            _spaceName,
-            _spaceDescription,
+            _syndicateName,
+            _syndicateDescription,
+            _nftName,
+            _nftSymbol,
             address(erc721)
         );
     }
 
-    // JoinSpace - join a space based on the spaceId
-    function joinSpaces(uint256 _spaceId) public {
-        userSpaces[msg.sender].push(_spaceId);
-        emit EventJoinSpaces(_spaceId);
+    //* Join a Syndicate based on the syndicateId
+    // ? You must have an NFT sent by the Founder of the Syndicate
+    function joinSyndicate(uint256 _syndicateId) public {
+
+        // Require NFT of the Syndicate
+        require(checkOwnership(msg.sender, _syndicateId), "Not a Syndicate Member");
+
+        userSyndicates[msg.sender].push(_syndicateId);
+        emit EventJoinSyndicate(_syndicateId, msg.sender);
     }
 
-    // return all the spaces associated with the user
-    function getJoinSpaces(
-        address _user
+    //* Get all the syndicates associated with the user
+    function getJoinSyndicates(
+        address _userAddress
     ) public view returns (uint256[] memory) {
-        return userSpaces[_user];
+        return userSyndicates[_userAddress];
     }
 
-    // retrieve the space name by search
-    function getCreatorSpace(uint256 _id) public view returns (string memory) {
-        return spaces[_id].spaceName;
+    //* Get the Syndicate's name by search
+    function getSyndicateName(uint256 _id) public view returns (string memory) {
+        return syndicates[_id].syndicateName;
     }
 
-    // Upload Text Content
+    //* Upload Text Content
     function uploadTextContent(
         string memory _textContent,
         string memory _memeTitle,
-        string memory _creditSource,
         bool _isSpoiler,
         bool _isOC,
-        uint256 _spaceName
+        uint _syndicateId
     ) public payable {
         // Enure the text content exists
         require(
             bytes(_textContent).length > 0 && bytes(_textContent).length <= 500
         );
-        // Ensure image description
+        // Ensure title length
         require(
             bytes(_memeTitle).length > 0 && bytes(_memeTitle).length <= 100
         );
-        // Ensure image description
-        require(bytes(_creditSource).length <= 140);
+
         // Enure uploader address exists
         require(msg.sender != address(0));
 
@@ -285,15 +277,13 @@ contract Reddit {
             imageCount,
             _textContent,
             _memeTitle,
-            _creditSource,
-            0,
-            payable(msg.sender),
+            msg.sender,
             block.timestamp,
             upvoteScore,
             0,
             _isSpoiler,
             _isOC,
-            _spaceName
+            _syndicateName
         );
 
         // check if user exist add to mapping if not create new from varibale
@@ -301,12 +291,14 @@ contract Reddit {
 
         // get variable for address if already created and update mapping record
         if (msg.sender == _user.addr) {
+            // * User Already Exist
             posts[msg.sender].push(imageCount); // Update Post array (address => Image.id)
             users[msg.sender].upvotesTotal = _user.upvotesTotal + 1;
             users[msg.sender].postTotal = _user.postTotal + 1;
         } else {
+            // * Create New User
             posts[msg.sender].push(imageCount); // Update Post array (address => Image.id)
-            users[msg.sender] = User(msg.sender, 1, 0, postTotal, false);
+            users[msg.sender] = User(msg.sender, 1, 0, postTotal, true);
             userCount++;
         }
 
@@ -315,25 +307,23 @@ contract Reddit {
             imageCount,
             _textContent,
             _memeTitle,
-            _creditSource,
-            0,
-            payable(msg.sender),
+            msg.sender,
             block.timestamp,
             upvoteScore,
             0,
             _isSpoiler,
             _isOC,
-            _spaceName
+            _syndicateName
         );
     }
 
-    // Upload image
+    //* Upload image
     function uploadImage(
         string memory _imgHash,
         string memory _memeTitle,
         bool _isSpoiler,
         bool _isOC,
-        uint256 _spaceName
+        uint _syndicateId
     ) public payable {
         // Enure the image title hash exists
         require(bytes(_imgHash).length > 0 && bytes(_imgHash).length <= 100);
@@ -356,15 +346,13 @@ contract Reddit {
             imageCount,
             _imgHash,
             _memeTitle,
-            _creditSource,
-            0,
-            payable(msg.sender),
+            msg.sender,
             block.timestamp,
             upvoteScore,
             0,
             _isSpoiler,
             _isOC,
-            _spaceName
+            _syndicateId
         );
 
         // check if user exist add to mapping if not create new from varibale
@@ -386,19 +374,17 @@ contract Reddit {
             imageCount,
             _imgHash,
             _memeTitle,
-            _creditSource,
-            0,
-            payable(msg.sender),
+            msg.sender,
             block.timestamp,
             upvoteScore,
             0,
             _isSpoiler,
             _isOC,
-            _spaceName
+            _syndicateId
         );
     }
 
-    // add a comment to an image. Comments structs appended to comment mapping of struct
+    //* Add Comment to an Image(Post) in your Syndicate
     function addComment(
         uint256 _imageId,
         string memory _commentMessage
@@ -407,6 +393,12 @@ contract Reddit {
             bytes(_commentMessage).length > 0 &&
                 bytes(_commentMessage).length <= 280
         );
+
+        // * Get Image Detail
+        Image memory image = images[_imageId];
+
+        // * Check if Member of the Syndicate in which the Image is Posted
+        require(checkOwnership(msg.sender, image.syndicateId), "Not a Syndicate Member");
 
         comments[_imageId].push(
             Comment(msg.sender, block.timestamp, _imageId, _commentMessage)
@@ -422,14 +414,14 @@ contract Reddit {
         );
     }
 
-    // get following comments
+    //* Get All Comments for an Image(Post)
     function getComments(
         uint256 imageId
     ) public view returns (Comment[] memory) {
         return comments[imageId];
     }
 
-    // total number of upvotes by user
+    //* Get Total number of upvotes of a User
     function getUserUpvotesTotal(
         address _userAddr
     ) public view returns (uint256) {
@@ -437,7 +429,7 @@ contract Reddit {
         return _user.upvotesTotal;
     }
 
-    // total number of downvotes by user
+    //* Get Total Number of downvotes of a User
     function getUserDownvotesTotal(
         address _userAddr
     ) public view returns (uint256) {
@@ -445,73 +437,25 @@ contract Reddit {
         return _user.downvotesTotal;
     }
 
-    // total number of post by user
+    //* Get Total number of posts by user
     function getUserpostTotal(address _userAddr) public view returns (uint256) {
         User memory _user = users[_userAddr];
         return _user.postTotal;
     }
 
-    // Verify User based on Twitter Post -> can be unverified
-    function verifyUser(bool check) public {
-        // Requires user to have already posted
-        User memory _user = users[msg.sender];
-        require(
-            _user.addr == msg.sender,
-            "You need to post before verification"
-        );
-        users[msg.sender].isVerified = check;
-    }
-
-    // getVerified Status of User
-    function isVerifiedUser(address _userAddr) public view returns (bool) {
-        User memory _user = users[_userAddr];
-        return users[_userAddr].isVerified;
-    }
-
-    //tip owner any amount of ETH
-    function tipImageOwner(uint256 _id) public payable {
+    //* Upvote a Post in your Syndicate
+    function upvoteMeme(uint256 _id) public payable {
         // Make sure the id is valid
         require(_id > 0 && _id <= imageCount);
 
         // Fetch the image
         Image memory _image = images[_id];
 
-        // Fetch the author
-        address payable _author = _image.author;
-
-        // Pay the author by sending them Ether
-        payable(_author).transfer(msg.value);
-
-        // Increment the tip amount
-        _image.tipAmount = _image.tipAmount + msg.value;
-
-        // Increment total earnings overall
-        totalEarnings[_image.author] += _image.tipAmount;
-
-        // Update the image
-        images[_id] = _image;
-
-        // Trigger an event
-        emit ImageTipped(
-            _id,
-            _image.hash,
-            _image.memeTitle,
-            _image.creditSource,
-            _image.tipAmount,
-            _author,
-            msg.sender
-        );
-    }
-
-    function upvoteMeme(uint256 _id, IERC20 token) public payable {
-        // Make sure the id is valid
-        require(_id > 0 && _id <= imageCount);
-
-        // Fetch the image
-        Image memory _image = images[_id];
+        // * Check if Member of the Syndicate in which the Image is Posted
+        require(checkOwnership(msg.sender, _image.syndicateId), "Not a Syndicate Member");
 
         // Fetch the author
-        address payable _author = _image.author;
+        address _author = _image.author;
 
         //Increment Upvote Counter
         _image.upvotes = _image.upvotes + 1;
@@ -525,35 +469,25 @@ contract Reddit {
         // Update the image
         images[_id] = _image;
 
-        //  Upvote Token Amount
-        uint256 tokenUpvote = 100;
-
         // requires the upvoter not be the poster
         require(
             msg.sender != _author,
             "poster's can not upvote their own content"
         );
 
-        //balance of the smart contract -> note ".this" refers to the contract instance
-        // Send balance to the contract not the address of the minter
-        uint256 erc20balance = token.balanceOf(address(this));
-        require(tokenUpvote <= erc20balance, "balance is low");
-        token.transfer(_author, tokenUpvote);
-        emit TransferSent(msg.sender, _author, tokenUpvote);
-
         // Trigger an event
         emit ImageUpvotes(
             _id,
             _image.hash,
             _image.memeTitle,
-            _image.creditSource,
-            _image.tipAmount,
             _author,
             _image.upvotes,
-            _image.downvotes
+            _image.downvotes,
+            _image.syndicateId
         );
     }
 
+    //* Downvote a Post in your Syndicate
     function downvoteMeme(uint256 _id) public payable {
         // Make sure the id is valid
         require(_id > 0 && _id <= imageCount);
@@ -561,8 +495,11 @@ contract Reddit {
         // Fetch the image
         Image memory _image = images[_id];
 
+        // * Check if Member of the Syndicate in which the Image is Posted
+        require(checkOwnership(msg.sender, _image.syndicateId), "Not a Syndicate Member");
+
         // Fetch the author
-        address payable _author = _image.author;
+        address _author = _image.author;
 
         //Increment Upvote Counter
         _image.downvotes = _image.downvotes + 1;
@@ -581,48 +518,35 @@ contract Reddit {
             _id,
             _image.hash,
             _image.memeTitle,
-            _image.creditSource,
-            _image.tipAmount,
             _author,
             _image.upvotes,
-            _image.downvotes
+            _image.downvotes,
+            _image.syndicateId
         );
     }
 
-    //Get Image upvotes
+    //* Get Image upvotes
     function getUpvotes(uint256 _id) public view returns (uint256) {
         // Fetch the image
         Image memory _image = images[_id];
         return _image.upvotes;
     }
 
-    //Get Image upvotes
+    //* Get Image upvotes
     function getDownvotes(uint256 _id) public view returns (uint256) {
         // Fetch the image
         Image memory _image = images[_id];
         return _image.downvotes;
     }
 
-    //View Post Earnings
-    function imageEarnings(uint256 _id) public view returns (uint256) {
-        // Fetch the image
-        Image memory _image = images[_id];
-        return _image.tipAmount;
-    }
 
-    //View User Earnings
-    function getTotalEarnings(address _author) public view returns (uint256) {
-        uint256 totalEarned = totalEarnings[_author];
-        return totalEarned;
-    }
-
-    // View if Spoiler
+    //* View if Spoiler
     function getIsSpoiler(uint256 _id) public view returns (bool) {
         Image memory _image = images[_id];
         return _image.isSpoiler;
     }
 
-    // View Platform User Count
+    //* View Platform User Count
     function getUserCount() public view returns (uint256) {
         return userCount;
     }
