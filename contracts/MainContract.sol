@@ -2,6 +2,9 @@
 
 pragma solidity ^0.8.4;
 
+import "https://github.com/OpenZeppelin/openzeppelin-solidity/contracts/token/ERC721/ERC721.sol";
+
+
 contract Reddit {
     address owner;
 
@@ -52,6 +55,7 @@ contract Reddit {
         uint256 dateCreated;
         string spaceName;
         string spaceDescription;
+        address NftContract;
     }
 
     // Profile of User
@@ -62,7 +66,7 @@ contract Reddit {
         uint256 postTotal;
         bool isVerified;
     }
-    
+
     // Image Proprerty Struct
     struct Image {
         uint256 id;
@@ -80,7 +84,7 @@ contract Reddit {
         uint256 spaceName;
     }
 
-        // Comment structure assoicated with image
+    // Comment structure assoicated with image
     struct Comment {
         address addr;
         uint256 datePosted;
@@ -88,8 +92,19 @@ contract Reddit {
         string commentMessage;
     }
 
-
     // ? EVENTS
+
+    event EventCreateSpace(
+        uint256 spaceCount,
+        address spaceCreator,
+        uint256 dateCreated,
+        string spaceName,
+        string spaceDescription,
+        address NftContract
+    );
+
+    event EventJoinSpaces(uint256 id);
+
     event ImageCreated(
         uint256 id,
         string hash,
@@ -144,15 +159,7 @@ contract Reddit {
         string commentMessage
     );
 
-    event EventCreateSpace(
-        uint256 spaceCount,
-        address spaceCreator,
-        uint256 dateCreated,
-        string spaceName,
-        string spaceDescription
-    );
-
-    event EventJoinSpaces(uint256 id);
+    
 
     event TransferReceived(address _from, uint256 _amount);
     event TransferSent(address _from, address _destAddr, uint256 _amount);
@@ -162,33 +169,30 @@ contract Reddit {
         console.log("Deploying JoinSpace Smart Contract by Owner Add:", owner);
     }
 
+    // * Contract Owner Only
     modifier onlyOwner() {
         require(owner == msg.sender, "Not the Owner");
         _;
     }
 
-    //Transfer ERC20 token within Smart Contract to another address / wallet
-    function transferERC20(
-        IERC20 token,
-        address to,
-        uint256 amount
-    ) public {
-        require(msg.sender == owner, "Only owner can withdraw funds");
-        //balance of the smart contract -> note ".this" refers to the contract instance
-        uint256 erc20balance = token.balanceOf(address(this));
-        require(amount <= erc20balance, "balance is low");
-        token.transfer(to, amount);
-        emit TransferSent(msg.sender, to, amount);
+    // Space Members
+    modifier onlyMembers(uint256 _spaceId) {
+        require(checkOwnership(msg.sender, _spaceId), "Not authorized");
+        _;
     }
 
-    //get token balance for users and their token earnings -> Only smart contract can read this directly
-    function tokenBalance(IERC20 token, address holder)
-        public
-        view
-        returns (uint256)
-    {
-        return token.balanceOf(holder);
+    // * Check Member Function
+    function checkOwnership(address _user, uint256 _spaceId) public view returns (bool) {
+        // Get the address of the NFT contract for the specified space
+        address nftContract = spaceArray[_spaceId].NftContract;
+
+        // Call the balanceOf function on the NFT contract to get the number of NFTs owned by the user
+        uint256 balance = ERC721(nftContract).balanceOf(_user);
+
+        // Return true if the user has at least one NFT in the NFT contract, otherwise return false
+        return balance > 0;
     }
+
 
     // Create JoinSpace Spaces
     // Requirement: Wallet Address must reach the minimum threashold of ETH and ERC20 Tokens
@@ -203,13 +207,12 @@ contract Reddit {
             bytes(_spaceDescription).length > 0 &&
                 bytes(_spaceDescription).length <= 100
         );
-        
-        // Check User Balance
-        uint256 userWalletBalance = token.balanceOf(msg.sender);
-        require(10000 <= userWalletBalance, "balance is low");
 
         // Add to index
         spaceCount++;
+
+        // Create an instance of the ERC721 contract
+        ERC721 erc721 = new ERC721(_name, _symbol);
 
         // Add to spaces mapping
         spaces[spaceCount] = Space(
@@ -217,7 +220,8 @@ contract Reddit {
             msg.sender,
             block.timestamp,
             _spaceName,
-            _spaceDescription
+            _spaceDescription,
+            address(erc721)
         );
 
         emit EventCreateSpace(
@@ -225,7 +229,8 @@ contract Reddit {
             msg.sender,
             block.timestamp,
             _spaceName,
-            _spaceDescription
+            _spaceDescription,
+            address(erc721)
         );
     }
 
@@ -236,11 +241,9 @@ contract Reddit {
     }
 
     // return all the spaces associated with the user
-    function getJoinSpaces(address _user)
-        public
-        view
-        returns (uint256[] memory)
-    {
+    function getJoinSpaces(
+        address _user
+    ) public view returns (uint256[] memory) {
         return userSpaces[_user];
     }
 
@@ -328,7 +331,6 @@ contract Reddit {
     function uploadImage(
         string memory _imgHash,
         string memory _memeTitle,
-        string memory _creditSource,
         bool _isSpoiler,
         bool _isOC,
         uint256 _spaceName
@@ -339,8 +341,7 @@ contract Reddit {
         require(
             bytes(_memeTitle).length > 0 && bytes(_memeTitle).length <= 100
         );
-        // Ensure image description
-        require(bytes(_creditSource).length <= 140);
+
         // Enure uploader address exists
         require(msg.sender != address(0));
 
@@ -398,9 +399,10 @@ contract Reddit {
     }
 
     // add a comment to an image. Comments structs appended to comment mapping of struct
-    function addComment(uint256 _imageId, string memory _commentMessage)
-        public
-    {
+    function addComment(
+        uint256 _imageId,
+        string memory _commentMessage
+    ) public {
         require(
             bytes(_commentMessage).length > 0 &&
                 bytes(_commentMessage).length <= 280
@@ -421,26 +423,24 @@ contract Reddit {
     }
 
     // get following comments
-    function getComments(uint256 imageId) public view returns (Comment[] memory) {
+    function getComments(
+        uint256 imageId
+    ) public view returns (Comment[] memory) {
         return comments[imageId];
     }
 
     // total number of upvotes by user
-    function getUserUpvotesTotal(address _userAddr)
-        public
-        view
-        returns (uint256)
-    {
+    function getUserUpvotesTotal(
+        address _userAddr
+    ) public view returns (uint256) {
         User memory _user = users[_userAddr];
         return _user.upvotesTotal;
     }
 
     // total number of downvotes by user
-    function getUserDownvotesTotal(address _userAddr)
-        public
-        view
-        returns (uint256)
-    {
+    function getUserDownvotesTotal(
+        address _userAddr
+    ) public view returns (uint256) {
         User memory _user = users[_userAddr];
         return _user.downvotesTotal;
     }
@@ -470,7 +470,6 @@ contract Reddit {
 
     //tip owner any amount of ETH
     function tipImageOwner(uint256 _id) public payable {
-        
         // Make sure the id is valid
         require(_id > 0 && _id <= imageCount);
 
@@ -502,7 +501,6 @@ contract Reddit {
             _author,
             msg.sender
         );
-        
     }
 
     function upvoteMeme(uint256 _id, IERC20 token) public payable {
@@ -618,21 +616,21 @@ contract Reddit {
         return totalEarned;
     }
 
+    // View if Spoiler
     function getIsSpoiler(uint256 _id) public view returns (bool) {
         Image memory _image = images[_id];
         return _image.isSpoiler;
     }
 
+    // View Platform User Count
     function getUserCount() public view returns (uint256) {
         return userCount;
     }
 
-    function getUserPosts(address _author)
-        public
-        view
-        returns (uint256[] memory)
-    {
+    // Get All Posts by User
+    function getUserPosts(
+        address _author
+    ) public view returns (uint256[] memory) {
         return posts[_author];
     }
 }
-
