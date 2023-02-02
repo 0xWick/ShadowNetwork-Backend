@@ -318,7 +318,7 @@ contract ShadowNetwork {
         } else {
             // * Create New User
             posts[msg.sender].push(imageCount); // Update Post array (address => Image.id)
-            users[msg.sender] = User(msg.sender, 1, 0, postTotal, true);
+            users[msg.sender] = User(msg.sender, 1, 0, postTotal);
             userCount++;
         }
 
@@ -389,7 +389,7 @@ contract ShadowNetwork {
             users[msg.sender].postTotal = _user.postTotal + 1;
         } else {
             posts[msg.sender].push(imageCount); // Update Post array (address => Image.id)
-            users[msg.sender] = User(msg.sender, 1, 0, postTotal, false);
+            users[msg.sender] = User(msg.sender, 1, 0, postTotal);
             userCount++;
         }
 
