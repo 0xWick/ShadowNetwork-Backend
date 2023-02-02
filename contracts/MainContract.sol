@@ -20,6 +20,8 @@ contract nftContract is ERC721, ERC721Burnable, Ownable {
         _tokenIdCounter.increment();
         _safeMint(to, tokenId);
     }
+
+
 }
 contract ShadowNetwork {
 
@@ -118,56 +120,56 @@ contract ShadowNetwork {
 
     // ? EVENTS
     event EventCreateSyndicate (
-        uint256 syndicateCount,
-        address syndicateCreator,
+        uint256 indexed syndicateCount,
+        address indexed syndicateCreator,
         uint256 dateCreated,
         string syndicateName,
         string syndicateDescription,
         string _nftName,
         string _nftSymbol,
-        address NftContract
+        address indexed NftContract
     );
 
     event EventJoinSyndicate(uint256 id, address _member);
 
     event ImageCreated(
-        uint256 id,
+        uint256 indexed id,
         string hash,
         string memeTitle,
-        address author,
+        address indexed author,
         uint256 datePosted,
         uint256 upvotes,
         uint256 downvotes,
         bool isSpoiler,
         bool isOC,
-        uint256 syndicateId
+        uint256 indexed syndicateId
     );
 
     event ImageUpvotes(
-        uint256 id,
+        uint256 indexed id,
         string hash,
         string memeTitle,
-        address author,
+        address indexed author,
         uint256 upvotes,
         uint256 downvotes,
-        uint256 syndicateId
+        uint256 indexed syndicateId
     );
 
     event ImageDownvotes(
-        uint256 id,
+        uint256 indexed id,
         string hash,
         string memeTitle,
-        address author,
+        address indexed author,
         uint256 upvotes,
         uint256 downvotes,
-        uint256 syndicateId
+        uint256 indexed syndicateId
     );
 
     event CommentAdded(
-        address addr,
+        address indexed addr,
         uint256 datePosted,
-        uint256 imageId,
-        string commentMessage
+        uint256 indexed imageId,
+        string indexed commentMessage
     );
 
     constructor() {
