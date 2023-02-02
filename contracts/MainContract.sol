@@ -2,9 +2,25 @@
 
 pragma solidity ^0.8.4;
 
-import "https://github.com/OpenZeppelin/openzeppelin-solidity/contracts/token/ERC721/ERC721.sol";
 
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 
+contract nftContract is ERC721, ERC721Burnable, Ownable {
+    using Counters for Counters.Counter;
+
+    Counters.Counter private _tokenIdCounter;
+
+    constructor(string memory _name,string memory _symbol) ERC721(_name, _symbol) {}
+
+    function safeMint(address to) public onlyOwner {
+        uint256 tokenId = _tokenIdCounter.current();
+        _tokenIdCounter.increment();
+        _safeMint(to, tokenId);
+    }
+}
 contract ShadowNetwork {
 
     // * Project Terminology
@@ -169,10 +185,10 @@ contract ShadowNetwork {
     // * Check Member Function
     function checkOwnership(address _user, uint256 _syndicateId) public view returns (bool) {
         // Get the address of the NFT contract for the specified space
-        address nftContract = syndicates[_syndicateId].NftContract;
+        address nftContractAddress = syndicates[_syndicateId].NftContract;
 
         // Call the balanceOf function on the NFT contract to get the number of NFTs owned by the user
-        uint256 balance = ERC721(nftContract).balanceOf(_user);
+        uint256 balance = nftContract(nftContractAddress).balanceOf(_user);
 
         // Return true if the user has at least one NFT in the NFT contract, otherwise return false
         return balance > 0;
@@ -196,7 +212,10 @@ contract ShadowNetwork {
         syndicateCount++;
 
         // Create an instance of the ERC721 contract
-        ERC721 erc721 = new ERC721(_nftName, _nftSymbol);
+        nftContract _nftContract = new nftContract(_nftName, _nftSymbol);
+
+        // Set the owner of the ERC721 contract to the function caller
+        _nftContract.transferOwnership(msg.sender);
 
         // Add to spaces mapping
         syndicates[syndicateCount] = Syndicate(
@@ -207,7 +226,7 @@ contract ShadowNetwork {
             _syndicateDescription,
             _nftName,
             _nftSymbol,
-            address(erc721)
+            address(_nftContract)
         );
 
         emit EventCreateSyndicate(
@@ -218,7 +237,7 @@ contract ShadowNetwork {
             _syndicateDescription,
             _nftName,
             _nftSymbol,
-            address(erc721)
+            address(_nftContract)
         );
     }
 
@@ -267,6 +286,7 @@ contract ShadowNetwork {
 
         // * Check if Member of the Syndicate in which the Image is Posted
         require(checkOwnership(msg.sender, _syndicateId), "Not a Syndicate Member");
+
 
         // Increment image id
         imageCount++;
