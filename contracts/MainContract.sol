@@ -18,7 +18,7 @@ contract ShadowNetwork {
 
     // ? ------User : Shadow
     // User Mapping
-    mapping(address => user) public users;
+    mapping(address => User) public users;
 
     // User curated spaces (join syndicates)
     // Syndicate Ids user have joined
@@ -64,8 +64,8 @@ contract ShadowNetwork {
         uint256 dateCreated;
         string syndicateName;
         string syndicateDescription;
-        string _nftName,
-        string _nftSymbol,
+        string _nftName;
+        string _nftSymbol;
         address NftContract;
     }
 
@@ -103,15 +103,15 @@ contract ShadowNetwork {
     }
 
     // ? EVENTS
-    event EventCreateSyndicate(
-        uint256 syndicateCount;
-        address syndicateCreator;
-        uint256 dateCreated;
-        string syndicateName;
-        string syndicateDescription;
-        string _nftName;
-        string _nftSymbol;
-        address NftContract;
+    event EventCreateSyndicate (
+        uint256 syndicateCount,
+        address syndicateCreator,
+        uint256 dateCreated,
+        string syndicateName,
+        string syndicateDescription,
+        string _nftName,
+        string _nftSymbol,
+        address NftContract
     );
 
     event EventJoinSyndicate(uint256 id, address _member);
@@ -158,7 +158,6 @@ contract ShadowNetwork {
 
     constructor() {
         owner = msg.sender;
-        console.log("Deploying Shadow Network Smart Contract by Shogun:", owner);
     }
 
     // * Contract Owner Only
@@ -283,7 +282,7 @@ contract ShadowNetwork {
             0,
             _isSpoiler,
             _isOC,
-            _syndicateName
+            _syndicateId
         );
 
         // check if user exist add to mapping if not create new from varibale
@@ -313,7 +312,7 @@ contract ShadowNetwork {
             0,
             _isSpoiler,
             _isOC,
-            _syndicateName
+            _syndicateId
         );
     }
 
