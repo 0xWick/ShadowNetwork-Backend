@@ -91,8 +91,6 @@ contract ShadowNetwork {
         uint256 upvotesTotal;
         uint256 downvotesTotal;
         uint256 postTotal;
-        // * Is User Registered on Platform
-        bool isVerified;
     }
 
     // Image Proprerty Struct
