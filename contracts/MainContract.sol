@@ -265,6 +265,9 @@ contract ShadowNetwork {
         // Enure uploader address exists
         require(msg.sender != address(0));
 
+        // * Check if Member of the Syndicate in which the Image is Posted
+        require(checkOwnership(msg.sender, _syndicateId), "Not a Syndicate Member");
+
         // Increment image id
         imageCount++;
 
@@ -333,6 +336,10 @@ contract ShadowNetwork {
 
         // Enure uploader address exists
         require(msg.sender != address(0));
+
+        // * Check if Member of the Syndicate in which the Image is Posted
+        require(checkOwnership(msg.sender, _syndicateId), "Not a Syndicate Member");
+
 
         // Increment image id
         imageCount++;
