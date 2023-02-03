@@ -8,6 +8,12 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
+// ! Add SoulBound Contract
+
+// ! Mint an NFT to the Creator after OwnerShip transfership
+
+// ! Make unpayable
+
 contract nftContract is ERC721, ERC721Burnable, Ownable {
     using Counters for Counters.Counter;
 
@@ -20,9 +26,9 @@ contract nftContract is ERC721, ERC721Burnable, Ownable {
         _tokenIdCounter.increment();
         _safeMint(to, tokenId);
     }
-
-
 }
+
+
 contract ShadowNetwork {
 
     // * Project Terminology
@@ -52,24 +58,24 @@ contract ShadowNetwork {
     // Id to Syndicate
     mapping(uint256 => Syndicate) public syndicates;
 
-    // ? -------Image (Posts)
-    // Image index
-    uint256 public imageCount = 0;
+    // ? -------Posts
+    // Post index
+    uint256 public postCount = 0;
 
-    // Id to Image
-    mapping(uint256 => Image) public images;
+    // postId to Post
+    mapping(uint256 => Post) public posts;
 
     //* Get all Post Ids for a User
-    // * userAddress => [imageIds Array]
-    mapping(address => uint256[]) posts;
+    // * userAddress => [postIds Array]
+    mapping(address => uint256[]) addressToPosts;
     // ? --------------/
 
     // ? ------Comments
-    // create comments mapping (imageId -> comment)
+    // create comments mapping (postId -> comment)
     // Array of Comment(Struct) for a Post
     mapping(uint256 => Comment[]) public comments;
 
-    // create mapping to keep inventory on number of comments per image
+    // create mapping to keep inventory on number of comments per Post
     // postId => No of Comments
     mapping(uint256 => uint256) public commentOnPosts;
     // ? --------------/
@@ -95,10 +101,10 @@ contract ShadowNetwork {
         uint256 postTotal;
     }
 
-    // Image Proprerty Struct
-    struct Image {
+    // Post Struct
+    struct Post {
         uint256 id;
-        string hash;
+        string description;
         string memeTitle;
         address author;
         uint256 datePosted;
@@ -110,14 +116,13 @@ contract ShadowNetwork {
         uint256 syndicateId;
     }
 
-    // Comment structure assoicated with image
+    // Comment structure assoicated with Post
     struct Comment {
         address addr;
         uint256 datePosted;
-        uint256 imageId;
+        uint256 postId;
         string commentMessage;
     }
-
     // ? EVENTS
     event EventCreateSyndicate (
         uint256 indexed syndicateCount,
@@ -130,11 +135,11 @@ contract ShadowNetwork {
         address indexed NftContract
     );
 
-    event EventJoinSyndicate(uint256 id, address _member);
+    event EventJoinSyndicate(uint256 indexed id, address indexed _member);
 
-    event ImageCreated(
+    event PostCreated(
         uint256 indexed id,
-        string hash,
+        string description,
         string memeTitle,
         address indexed author,
         uint256 datePosted,
@@ -145,7 +150,7 @@ contract ShadowNetwork {
         uint256 indexed syndicateId
     );
 
-    event ImageUpvotes(
+    event PostUpvotes(
         uint256 indexed id,
         string hash,
         string memeTitle,
@@ -155,7 +160,7 @@ contract ShadowNetwork {
         uint256 indexed syndicateId
     );
 
-    event ImageDownvotes(
+    event PostDownvotes(
         uint256 indexed id,
         string hash,
         string memeTitle,
@@ -168,7 +173,7 @@ contract ShadowNetwork {
     event CommentAdded(
         address indexed addr,
         uint256 datePosted,
-        uint256 indexed imageId,
+        uint256 indexed postId,
         string indexed commentMessage
     );
 
@@ -200,7 +205,7 @@ contract ShadowNetwork {
         string memory _syndicateDescription,
         string memory _nftName,
         string memory _nftSymbol
-    ) public payable {
+    ) public {
         // Requires space name to be less than 21 words
         require(bytes(_syndicateName).length > 0 && bytes(_syndicateName).length <= 21);
         require(
@@ -271,7 +276,7 @@ contract ShadowNetwork {
         bool _isSpoiler,
         bool _isOC,
         uint _syndicateId
-    ) public payable {
+    ) public {
         // Enure the text content exists
         require(
             bytes(_textContent).length > 0 && bytes(_textContent).length <= 500
@@ -284,19 +289,19 @@ contract ShadowNetwork {
         // Enure uploader address exists
         require(msg.sender != address(0));
 
-        // * Check if Member of the Syndicate in which the Image is Posted
+        // * Check if Member of the Syndicate in which the Post is being Posted
         require(checkOwnership(msg.sender, _syndicateId), "Not a Syndicate Member");
 
 
-        // Increment image id
-        imageCount++;
+        // Increment Post id
+        postCount++;
 
         uint256 upvoteScore = 1;
         uint256 postTotal = 1;
 
-        // Add Image to the contract
-        images[imageCount] = Image(
-            imageCount,
+        // Add Post to the contract
+        posts[postCount] = Post(
+            postCount,
             _textContent,
             _memeTitle,
             msg.sender,
@@ -314,19 +319,19 @@ contract ShadowNetwork {
         // get variable for address if already created and update mapping record
         if (msg.sender == _user.addr) {
             // * User Already Exist
-            posts[msg.sender].push(imageCount); // Update Post array (address => Image.id)
+            addressToPosts[msg.sender].push(postCount); // Update Post array (address => Post.id)
             users[msg.sender].upvotesTotal = _user.upvotesTotal + 1;
             users[msg.sender].postTotal = _user.postTotal + 1;
         } else {
             // * Create New User
-            posts[msg.sender].push(imageCount); // Update Post array (address => Image.id)
+            addressToPosts[msg.sender].push(postCount); // Update Post array (address => Post.id)
             users[msg.sender] = User(msg.sender, 1, 0, postTotal);
             userCount++;
         }
 
         // Trigger an event
-        emit ImageCreated(
-            imageCount,
+        emit PostCreated(
+            postCount,
             _textContent,
             _memeTitle,
             msg.sender,
@@ -339,80 +344,10 @@ contract ShadowNetwork {
         );
     }
 
-    //* Upload image
-    function uploadImage(
-        string memory _imgHash,
-        string memory _memeTitle,
-        bool _isSpoiler,
-        bool _isOC,
-        uint _syndicateId
-    ) public payable {
-        // Enure the image title hash exists
-        require(bytes(_imgHash).length > 0 && bytes(_imgHash).length <= 100);
-        // Ensure image description
-        require(
-            bytes(_memeTitle).length > 0 && bytes(_memeTitle).length <= 100
-        );
 
-        // Enure uploader address exists
-        require(msg.sender != address(0));
-
-        // * Check if Member of the Syndicate in which the Image is Posted
-        require(checkOwnership(msg.sender, _syndicateId), "Not a Syndicate Member");
-
-
-        // Increment image id
-        imageCount++;
-
-        uint256 upvoteScore = 1;
-        uint256 postTotal = 1;
-
-        // Add Image to the contract
-        images[imageCount] = Image(
-            imageCount,
-            _imgHash,
-            _memeTitle,
-            msg.sender,
-            block.timestamp,
-            upvoteScore,
-            0,
-            _isSpoiler,
-            _isOC,
-            _syndicateId
-        );
-
-        // check if user exist add to mapping if not create new from varibale
-        User memory _user = users[msg.sender];
-
-        // get variable for address if already created and update mapping record
-        if (msg.sender == _user.addr) {
-            posts[msg.sender].push(imageCount); // Update Post array (address => Image.id)
-            users[msg.sender].upvotesTotal = _user.upvotesTotal + 1;
-            users[msg.sender].postTotal = _user.postTotal + 1;
-        } else {
-            posts[msg.sender].push(imageCount); // Update Post array (address => Image.id)
-            users[msg.sender] = User(msg.sender, 1, 0, postTotal);
-            userCount++;
-        }
-
-        // Trigger an event
-        emit ImageCreated(
-            imageCount,
-            _imgHash,
-            _memeTitle,
-            msg.sender,
-            block.timestamp,
-            upvoteScore,
-            0,
-            _isSpoiler,
-            _isOC,
-            _syndicateId
-        );
-    }
-
-    //* Add Comment to an Image(Post) in your Syndicate
+    //* Add Comment to a Post in your Syndicate
     function addComment(
-        uint256 _imageId,
+        uint256 _postId,
         string memory _commentMessage
     ) public {
         require(
@@ -420,31 +355,31 @@ contract ShadowNetwork {
                 bytes(_commentMessage).length <= 280
         );
 
-        // * Get Image Detail
-        Image memory image = images[_imageId];
+        // * Get Post Detail
+        Post memory post = posts[_postId];
 
-        // * Check if Member of the Syndicate in which the Image is Posted
-        require(checkOwnership(msg.sender, image.syndicateId), "Not a Syndicate Member");
+        // * Check if Member of the Syndicate in which the Post is Posted
+        require(checkOwnership(msg.sender, post.syndicateId), "Not a Syndicate Member");
 
-        comments[_imageId].push(
-            Comment(msg.sender, block.timestamp, _imageId, _commentMessage)
+        comments[_postId].push(
+            Comment(msg.sender, block.timestamp, _postId, _commentMessage)
         );
         // increments to reflect number of comments associted with post
-        commentOnPosts[_imageId] = commentOnPosts[_imageId] + 1;
+        commentOnPosts[_postId] = commentOnPosts[_postId] + 1;
 
         emit CommentAdded(
             msg.sender,
             block.timestamp,
-            _imageId,
+            _postId,
             _commentMessage
         );
     }
 
-    //* Get All Comments for an Image(Post)
+    //* Get All Comments for an Post
     function getComments(
-        uint256 imageId
+        uint256 postId
     ) public view returns (Comment[] memory) {
-        return comments[imageId];
+        return comments[postId];
     }
 
     //* Get Total number of upvotes of a User
@@ -470,30 +405,30 @@ contract ShadowNetwork {
     }
 
     //* Upvote a Post in your Syndicate
-    function upvoteMeme(uint256 _id) public payable {
+    function upvoteMeme(uint256 _id) public {
         // Make sure the id is valid
-        require(_id > 0 && _id <= imageCount);
+        require(_id > 0 && _id <= postCount);
 
-        // Fetch the image
-        Image memory _image = images[_id];
+        // Fetch the postId
+        Post memory _post = posts[_id];
 
-        // * Check if Member of the Syndicate in which the Image is Posted
-        require(checkOwnership(msg.sender, _image.syndicateId), "Not a Syndicate Member");
+        // * Check if Member of the Syndicate in which the Post is Posted
+        require(checkOwnership(msg.sender, _post.syndicateId), "Not a Syndicate Member");
 
         // Fetch the author
-        address _author = _image.author;
+        address _author = _post.author;
 
         //Increment Upvote Counter
-        _image.upvotes = _image.upvotes + 1;
+        _post.upvotes = _post.upvotes + 1;
 
         // user mapping
         User memory _user = users[_author];
 
         // update userTotalVotes
-        users[_image.author].upvotesTotal = _user.upvotesTotal + 1;
+        users[_post.author].upvotesTotal = _user.upvotesTotal + 1;
 
-        // Update the image
-        images[_id] = _image;
+        // Update the post
+        _post[_id] = _post;
 
         // requires the upvoter not be the poster
         require(
@@ -502,74 +437,74 @@ contract ShadowNetwork {
         );
 
         // Trigger an event
-        emit ImageUpvotes(
+        emit PostUpvotes(
             _id,
-            _image.hash,
-            _image.memeTitle,
+            _post.hash,
+            _post.memeTitle,
             _author,
-            _image.upvotes,
-            _image.downvotes,
-            _image.syndicateId
+            _post.upvotes,
+            _post.downvotes,
+            _post.syndicateId
         );
     }
 
     //* Downvote a Post in your Syndicate
-    function downvoteMeme(uint256 _id) public payable {
+    function downvoteMeme(uint256 _id) public {
         // Make sure the id is valid
-        require(_id > 0 && _id <= imageCount);
+        require(_id > 0 && _id <= postCount);
 
-        // Fetch the image
-        Image memory _image = images[_id];
+        // Fetch the post
+        Post memory _post = posts[_id];
 
-        // * Check if Member of the Syndicate in which the Image is Posted
-        require(checkOwnership(msg.sender, _image.syndicateId), "Not a Syndicate Member");
+        // * Check if Member of the Syndicate in which the Post is Posted
+        require(checkOwnership(msg.sender, _post.syndicateId), "Not a Syndicate Member");
 
         // Fetch the author
-        address _author = _image.author;
+        address _author = _post.author;
 
         //Increment Upvote Counter
-        _image.downvotes = _image.downvotes + 1;
+        _post.downvotes = _post.downvotes + 1;
 
         // user mapping
         User memory _user = users[_author];
 
         // update userTotalVotes
-        users[_image.author].downvotesTotal = _user.downvotesTotal + 1;
+        users[_post.author].downvotesTotal = _user.downvotesTotal + 1;
 
-        // Update the image
-        images[_id] = _image;
+        // Update the Post
+        posts[_id] = _post;
 
         // Trigger an event
-        emit ImageDownvotes(
+        emit PostDownvotes(
             _id,
-            _image.hash,
-            _image.memeTitle,
+            _post.hash,
+            _post.memeTitle,
             _author,
-            _image.upvotes,
-            _image.downvotes,
-            _image.syndicateId
+            _post.upvotes,
+            _post.downvotes,
+            _post.syndicateId
         );
     }
 
-    //* Get Image upvotes
+    //* Get Post upvotes
     function getUpvotes(uint256 _id) public view returns (uint256) {
-        // Fetch the image
-        Image memory _image = images[_id];
-        return _image.upvotes;
+        // Fetch the Post
+        Post memory _post = posts[_id];
+        return _post.upvotes;
     }
 
-    //* Get Image upvotes
+    //* Get Post upvotes
     function getDownvotes(uint256 _id) public view returns (uint256) {
-        // Fetch the image
-        Image memory _image = images[_id];
-        return _image.downvotes;
+        // Fetch the Post
+        Post memory _post = posts[_id];
+        return _posts.downvotes;
     }
 
 
     //* View if Spoiler
     function getIsSpoiler(uint256 _id) public view returns (bool) {
-        Image memory _image = images[_id];
-        return _image.isSpoiler;
+        Post memory _post = posts[_id];
+        return _post.isSpoiler;
     }
 
     //* View Platform User Count
@@ -581,6 +516,6 @@ contract ShadowNetwork {
     function getUserPosts(
         address _author
     ) public view returns (uint256[] memory) {
-        return posts[_author];
+        return addressToPosts[_author];
     }
 }
