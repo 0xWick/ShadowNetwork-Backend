@@ -12,8 +12,6 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 // ! Mint an NFT to the Creator after OwnerShip transfership
 
-// ! Make unpayable
-
 contract nftContract is ERC721, ERC721Burnable, Ownable {
     using Counters for Counters.Counter;
 
@@ -26,6 +24,7 @@ contract nftContract is ERC721, ERC721Burnable, Ownable {
         _tokenIdCounter.increment();
         _safeMint(to, tokenId);
     }
+
 }
 
 
