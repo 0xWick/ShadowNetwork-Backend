@@ -86,6 +86,8 @@ contract ShadowNetwork {
     // Syndicate Structure
     struct Syndicate {
         uint256 syndicateCount;
+        // * Add Image to syndicate
+        string syndicateImageHash;
         address syndicateCreator;
         uint256 dateCreated;
         string syndicateName;
