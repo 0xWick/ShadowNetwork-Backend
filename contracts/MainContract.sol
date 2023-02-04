@@ -221,9 +221,18 @@ contract ShadowNetwork {
         // Create an instance of the ERC721 contract
         nftContract _nftContract = new nftContract(_nftName, _nftSymbol);
 
+        // * Mint nft to the Owner
+        _nftContract.safeMint(msg.sender);
+
         // Set the owner of the ERC721 contract to the function caller
         _nftContract.transferOwnership(msg.sender);
 
+        // * Add the Creator to the Syndicate
+        userSyndicates[msg.sender].push(syndicateCount);
+
+        emit EventJoinSyndicate(syndicateCount, msg.sender);
+
+        // * Create the syndicate
         // Add to spaces mapping
         syndicates[syndicateCount] = Syndicate(
             syndicateCount,
