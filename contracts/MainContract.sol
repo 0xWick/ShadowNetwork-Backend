@@ -3,20 +3,16 @@
 pragma solidity ^0.8.4;
 
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts@4.6.0/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts@4.6.0/access/Ownable.sol";
+import "@openzeppelin/contracts@4.6.0/utils/Counters.sol";
 
-// ! Add SoulBound Contract
 
-// ! Mint an NFT to the Creator after OwnerShip transfership
-
-contract nftContract is ERC721, ERC721Burnable, Ownable {
-    using Counters for Counters.Counter;
-
+contract nftContract is ERC721, Ownable {
+    using Counter for Counters.Counter;
+    
     Counters.Counter private _tokenIdCounter;
-
+    
     constructor(string memory _name,string memory _symbol) ERC721(_name, _symbol) {}
 
     function safeMint(address to) public onlyOwner {
@@ -25,6 +21,13 @@ contract nftContract is ERC721, ERC721Burnable, Ownable {
         _safeMint(to, tokenId);
     }
 
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId)
+    internal
+    override(ERC721) {
+        // * Allow only Mint transfers
+        require(from == address(0), "Err: token is SOUL BOUND");
+        super._beforeTokenTransfer(from, to, tokenId);
+    }
 }
 
 
