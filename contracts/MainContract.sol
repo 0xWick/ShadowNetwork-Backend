@@ -9,7 +9,7 @@ import "@openzeppelin/contracts@4.6.0/utils/Counters.sol";
 
 
 contract nftContract is ERC721, Ownable {
-    using Counter for Counters.Counter;
+    using Counters for Counters.Counter;
     
     Counters.Counter private _tokenIdCounter;
     
@@ -108,6 +108,8 @@ contract ShadowNetwork {
     // Post Struct
     struct Post {
         uint256 id;
+        string imageHash;
+        bool hasImage;
         string description;
         string memeTitle;
         address author;
@@ -116,7 +118,6 @@ contract ShadowNetwork {
         uint256 downvotes;
         //convert to bool
         bool isSpoiler;
-        bool isOC;
         uint256 syndicateId;
     }
 
@@ -143,6 +144,8 @@ contract ShadowNetwork {
 
     event PostCreated(
         uint256 indexed id,
+        string imageHash,
+        bool hasImage,
         string description,
         string memeTitle,
         address indexed author,
@@ -150,13 +153,11 @@ contract ShadowNetwork {
         uint256 upvotes,
         uint256 downvotes,
         bool isSpoiler,
-        bool isOC,
         uint256 indexed syndicateId
     );
 
     event PostUpvotes(
         uint256 indexed id,
-        string hash,
         string memeTitle,
         address indexed author,
         uint256 upvotes,
@@ -166,7 +167,6 @@ contract ShadowNetwork {
 
     event PostDownvotes(
         uint256 indexed id,
-        string hash,
         string memeTitle,
         address indexed author,
         uint256 upvotes,
@@ -208,7 +208,8 @@ contract ShadowNetwork {
         string memory _syndicateName,
         string memory _syndicateDescription,
         string memory _nftName,
-        string memory _nftSymbol
+        string memory _nftSymbol,
+        string memory _syndicateImageHash
     ) public {
         // Requires space name to be less than 21 words
         require(bytes(_syndicateName).length > 0 && bytes(_syndicateName).length <= 21);
@@ -238,6 +239,7 @@ contract ShadowNetwork {
         // Add to spaces mapping
         syndicates[syndicateCount] = Syndicate(
             syndicateCount,
+            _syndicateImageHash,
             msg.sender,
             block.timestamp,
             _syndicateName,
@@ -286,8 +288,9 @@ contract ShadowNetwork {
     function uploadTextContent(
         string memory _textContent,
         string memory _memeTitle,
+        bool _hasImage,
+        string memory _postImageHash,
         bool _isSpoiler,
-        bool _isOC,
         uint _syndicateId
     ) public {
         // Enure the text content exists
@@ -315,6 +318,8 @@ contract ShadowNetwork {
         // Add Post to the contract
         posts[postCount] = Post(
             postCount,
+            _postImageHash,
+            _hasImage,
             _textContent,
             _memeTitle,
             msg.sender,
@@ -322,7 +327,6 @@ contract ShadowNetwork {
             upvoteScore,
             0,
             _isSpoiler,
-            _isOC,
             _syndicateId
         );
 
@@ -345,6 +349,8 @@ contract ShadowNetwork {
         // Trigger an event
         emit PostCreated(
             postCount,
+            _postImageHash,
+            _hasImage,
             _textContent,
             _memeTitle,
             msg.sender,
@@ -352,7 +358,6 @@ contract ShadowNetwork {
             upvoteScore,
             0,
             _isSpoiler,
-            _isOC,
             _syndicateId
         );
     }
@@ -441,7 +446,7 @@ contract ShadowNetwork {
         users[_post.author].upvotesTotal = _user.upvotesTotal + 1;
 
         // Update the post
-        _post[_id] = _post;
+        posts[_id] = _post;
 
         // requires the upvoter not be the poster
         require(
@@ -452,7 +457,6 @@ contract ShadowNetwork {
         // Trigger an event
         emit PostUpvotes(
             _id,
-            _post.hash,
             _post.memeTitle,
             _author,
             _post.upvotes,
@@ -490,7 +494,6 @@ contract ShadowNetwork {
         // Trigger an event
         emit PostDownvotes(
             _id,
-            _post.hash,
             _post.memeTitle,
             _author,
             _post.upvotes,
@@ -510,7 +513,7 @@ contract ShadowNetwork {
     function getDownvotes(uint256 _id) public view returns (uint256) {
         // Fetch the Post
         Post memory _post = posts[_id];
-        return _posts.downvotes;
+        return _post.downvotes;
     }
 
 
