@@ -131,6 +131,7 @@ contract ShadowNetwork {
     // ? EVENTS
     event EventCreateSyndicate (
         uint256 indexed syndicateCount,
+        string syndicateImageHash,
         address indexed syndicateCreator,
         uint256 dateCreated,
         string syndicateName,
@@ -178,7 +179,7 @@ contract ShadowNetwork {
         address indexed addr,
         uint256 datePosted,
         uint256 indexed postId,
-        string indexed commentMessage
+        string commentMessage
     );
 
     constructor() {
@@ -250,7 +251,8 @@ contract ShadowNetwork {
         );
 
         emit EventCreateSyndicate(
-             syndicateCount,
+            syndicateCount,
+            _syndicateImageHash,
             msg.sender,
             block.timestamp,
             _syndicateName,
