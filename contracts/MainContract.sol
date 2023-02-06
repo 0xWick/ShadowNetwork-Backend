@@ -7,8 +7,16 @@ import "@openzeppelin/contracts@4.6.0/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts@4.6.0/access/Ownable.sol";
 import "@openzeppelin/contracts@4.6.0/utils/Counters.sol";
 
+// PUSH Comm Contract Interface
+interface IPUSHCommInterface {
+    function sendNotification(address _channel, address _recipient, bytes calldata _identity) external;
+}
+
 
 contract nftContract is ERC721, Ownable {
+
+    address public EPNS_COMM_ADDRESS = 0x2b9bE9259a4F5Ba6344c1b1c07911539642a2D33;
+
     using Counters for Counters.Counter;
     
     Counters.Counter private _tokenIdCounter;
@@ -19,6 +27,10 @@ contract nftContract is ERC721, Ownable {
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
         _safeMint(to, tokenId);
+
+        // * Send Notification to PUSH Comm
+        bytes memory identity = abi.encodePacked("New Member Joined Syndicate");
+        IPUSHCommInterface(EPNS_COMM_ADDRESS).sendNotification(address(this), to, identity);
     }
 
     function _beforeTokenTransfer(address from, address to, uint256 tokenId)
