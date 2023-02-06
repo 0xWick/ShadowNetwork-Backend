@@ -15,7 +15,8 @@ interface IPUSHCommInterface {
 
 contract nftContract is ERC721, Ownable {
 
-    address public EPNS_COMM_ADDRESS = 0x2b9bE9259a4F5Ba6344c1b1c07911539642a2D33;
+    //address public EPNS_COMM_ADDRESS = 0x2b9bE9259a4F5Ba6344c1b1c07911539642a2D33; // eth goerli
+    address public EPNS_COMM_ADDRESS = 0xb3971BCef2D791bc4027BbfedFb47319A4AAaaAa; // mumbai polygon
 
     using Counters for Counters.Counter;
     
