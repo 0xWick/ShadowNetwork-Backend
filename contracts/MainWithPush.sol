@@ -8,6 +8,13 @@ import "@openzeppelin/contracts@4.6.0/access/Ownable.sol";
 import "@openzeppelin/contracts@4.6.0/utils/Counters.sol";
 
 
+// * Push Interface
+// PUSH Comm Contract Interface
+interface IPUSHCommInterface {
+    function sendNotification(address _channel, address _recipient, bytes calldata _identity) external;
+}
+
+
 contract nftContract is ERC721, Ownable {
     using Counters for Counters.Counter;
     
@@ -32,6 +39,12 @@ contract nftContract is ERC721, Ownable {
 
 
 contract ShadowNetwork {
+
+
+    // * Push Configuration
+    //address public EPNS_COMM_ADDRESS = 0x2b9bE9259a4F5Ba6344c1b1c07911539642a2D33; // eth goerli
+    address public EPNS_COMM_ADDRESS = 0xb3971BCef2D791bc4027BbfedFb47319A4AAaaAa; // mumbai polygon
+
 
     // * Project Terminology
 
@@ -95,6 +108,7 @@ contract ShadowNetwork {
         string _nftName;
         string _nftSymbol;
         address NftContract;
+        address channelAddress;
     }
 
     // Profile of User
@@ -138,7 +152,8 @@ contract ShadowNetwork {
         string syndicateDescription,
         string _nftName,
         string _nftSymbol,
-        address indexed NftContract
+        address indexed NftContract,
+        address channelAddress
     );
 
     event EventJoinSyndicate(uint256 indexed id, address indexed _member);
@@ -210,7 +225,8 @@ contract ShadowNetwork {
         string memory _syndicateDescription,
         string memory _nftName,
         string memory _nftSymbol,
-        string memory _syndicateImageHash
+        string memory _syndicateImageHash,
+        address _channelAddress
     ) public {
         // Requires space name to be less than 21 words
         require(bytes(_syndicateName).length > 0 && bytes(_syndicateName).length <= 21);
@@ -247,7 +263,8 @@ contract ShadowNetwork {
             _syndicateDescription,
             _nftName,
             _nftSymbol,
-            address(_nftContract)
+            address(_nftContract),
+            _channelAddress
         );
 
         emit EventCreateSyndicate(
@@ -259,7 +276,8 @@ contract ShadowNetwork {
             _syndicateDescription,
             _nftName,
             _nftSymbol,
-            address(_nftContract)
+            address(_nftContract),
+            _channelAddress
         );
     }
 
@@ -272,6 +290,34 @@ contract ShadowNetwork {
 
         userSyndicates[msg.sender].push(_syndicateId);
         emit EventJoinSyndicate(_syndicateId, msg.sender);
+    }
+    
+
+    // * Add to Syndicate
+
+    function addToSyndicate(address _to,uint256 _syndicateId) public {
+        
+        // * Get Syndicate
+        Syndicate memory _syndicate = syndicates[_syndicateId];
+
+        require(msg.sender == _syndicate.syndicateCreator, "Not Syndicate Owner");
+
+        // * Mint NFT
+        // Get the address of the NFT contract for the specified Syndicate
+        address nftContractAddress = _syndicate.NftContract;
+
+        // Add Member to Syndicate
+        nftContract(nftContractAddress).safeMint(_to);
+
+        // * Notify the Member
+        // * Push Notification
+        address channelAddress = _syndicate.channelAddress;
+
+        string memory name = _syndicate.syndicateName;
+
+        // * Send Notification to PUSH Comm
+        bytes memory identity = abi.encodePacked("Welcome To ", name);
+        IPUSHCommInterface(EPNS_COMM_ADDRESS).sendNotification(channelAddress, _to, identity);
     }
 
     //* Get all the syndicates associated with the user
@@ -517,7 +563,8 @@ contract ShadowNetwork {
         Post memory _post = posts[_id];
         return _post.downvotes;
     }
-    
+
+
     //* View if Spoiler
     function getIsSpoiler(uint256 _id) public view returns (bool) {
         Post memory _post = posts[_id];
